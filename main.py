@@ -10,22 +10,30 @@ app.register_blueprint(api_bp)
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        book_id = request.form['book_id']
-        # Obtener un libro específico desde tu API REST
-        response = requests.get(f'http://127.0.0.1:5000/api/books/{book_id}')
-        if response.status_code == 200:
-            book = response.json()
-            return render_template('index.html', book=book)
-        else:
-            return render_template('index.html', error='Libro no encontrado')
-    else:
-        # Obtener la lista de libros desde tu API REST
-        response = requests.get('http://127.0.0.1:5000/api/books')
-        if response.status_code == 200:
+        filters = {
+            'book_id': request.form.get('book_id'),
+            'name': request.form.get('name'),
+            'author': request.form.get('author'),
+            'year': request.form.get('year'),
+            'genre': request.form.get('genre')
+        }
+        # Print the filters to debug
+        print(f"Filters from form: {filters}")
+        try:
+            response = requests.get('http://127.0.0.1:5000/api/books', params=filters)
+            response.raise_for_status()
             books = response.json()
             return render_template('index.html', books=books)
-        else:
-            return render_template('index.html', error='Error al obtener los libros')
+        except requests.exceptions.RequestException as e:
+            return render_template('index.html', error=str(e))
+    else:
+        try:
+            response = requests.get('http://127.0.0.1:5000/api/books')
+            response.raise_for_status()
+            books = response.json()
+            return render_template('index.html', books=books)
+        except requests.exceptions.RequestException as e:
+            return render_template('index.html', error=str(e))
 
 
 # Ruta para el Formulario de un Nuevo Libro
@@ -54,6 +62,7 @@ def update(book_id):
     # Obtenemos los datos del libro a actualizar de la API REST
     response = requests.get(f'http://127.0.0.1:5000/api/books/{book_id}')
     book = response.json()
+    print(book)
     
     if request.method == 'POST':
         # Enviamos los datos actualizados del libro a la API REST

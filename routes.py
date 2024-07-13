@@ -6,10 +6,36 @@ api_bp = Blueprint('api', __name__, url_prefix='/api/books')
 api = Api(api_bp)
 
 class BookResource(Resource):
-    def get_all_books(self):
+    def get_all_books(self, filters=None):
         db = get_db()
         c = db.cursor()
-        c.execute("SELECT * FROM Tb_libros")
+
+        query = "SELECT * FROM Tb_Libros WHERE 1=1"
+        params = []
+
+        if filters:
+            if 'book_id' in filters and filters['book_id']:
+                query += " AND cod_libro = ?"
+                params.append(filters['book_id'])
+            if 'name' in filters and filters['name']:
+                query += " AND titulo LIKE ?"
+                params.append(f"%{filters['name']}%")
+            if 'author' in filters and filters['author']:
+                query += " AND autor LIKE ?"
+                params.append(f"%{filters['author']}%")
+            if 'genre' in filters and filters['genre']:
+                query += " AND genero LIKE ?"
+                params.append(f"%{filters['genre']}%")
+            if 'year' in filters and filters['year']:
+                try:
+                    year = int(filters['year'])
+                    query += " AND anio_publicacion = ?"
+                    params.append(year)
+                except ValueError:
+                    return {'error': 'Año inválido'}, 400
+
+        print(f"Query: {query}, Params: {params}")
+        c.execute(query, params)
         books = c.fetchall()
         close_db(db)
         return books
@@ -28,7 +54,15 @@ class BookResource(Resource):
         if book_id:
             return self.get_book_by_id(book_id)
         else:
-            return self.get_all_books()
+            filters = {
+                'book_id': request.args.get('book_id'),
+                'name': request.args.get('name'),
+                'author': request.args.get('author'),
+                'year': request.args.get('year'),
+                'genre': request.args.get('genre')
+            }
+            print(f"Filters from GET request: {filters}")
+            return self.get_all_books(filters)
 
     def post(self):
         db = get_db()
@@ -76,3 +110,4 @@ class BookResource(Resource):
         return {'message': 'Libro eliminado exitosamente'}, 200
 
 api.add_resource(BookResource, '/', '/<int:book_id>')
+
